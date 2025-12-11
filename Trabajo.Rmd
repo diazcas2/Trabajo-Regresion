@@ -1,6 +1,6 @@
 ---
 title: "Trabajo"
-author: "María de los Ángeles Díaz Castro"
+author: "María de los Ángeles Díaz Castro, Álvaro Nieva Valenzuela"
 date: "2025-12-10"
 output: html_document
 ---
@@ -9,3 +9,112 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Librerías
+```{r}
+library(openxlsx)
+library(corrplot)
+```
+
+# Importación de los datos
+```{r}
+datos <- read.xlsx("boston.xlsx")
+```
+
+# Ejercicio 1
+**Considera la variable respuesta crim relacionándola con la variable X con la que tenga mayor relación lineal.**
+
+Para ver que variables están más relacionadas con crim, hacemos la correlación de Pearson. De manera que debemos fijarnos solo en la columna de crim que indica las relaciones con esta variable.
+```{r}
+matcorr <- cor(datos, method = "pearson")
+corrplot(matcorr, method = "number", tl.col = "black")
+```
+Podemos ver que las variables más relacionadas con crim son indus,nox, lstat. Por otro lado, las que menos relacionadas están son black y chas. Como nos preguntan por la que más, trabajaremos con lstat que tiene una correlación alta con crim.
+
+**1. Evalúa el efecto de X sobre crim, gráficamente y numéricamente. Es decir, indica como es la relación (fuerza y tipo).**
+
+```{r}
+modelo<-lm(crim~lstat,data = datos)
+
+plot(datos$lstat, datos$crim,
+     col = "blue",
+     xlab = "Porcentaje de población con bajo nivel socioeconómico (lstat)",
+     ylab = "Tasa de crimen (crim)",
+     main = "Relación entre lstat y crim")               
+
+abline(modelo, col = "red", lwd = 2)
+```
+
+
+Para medir la fuerza y dirección del modelo, simplemente vamos a ver que ocurre con su correlación de Pearson, aunque con anterioridad vimos que estaban bastante relacionadas.
+
+```{r}
+cor(datos$crim, datos$lstat, method = "pearson")
+```
+
+La correlación obtenida es bastante alta y va en sentido positivo.
+
+**2. Obtén la recta de mínimos cuadrados. Interpreta los resultados obtenidos (coeficientes, significatividad, R2, contraste del modelo, etc...).**
+
+La recta de mínimos cuadrados fue hallada en el apartado anterior y la llamamos modelo. A continuación, vamos a ver que parámetros tiene dicha recta.
+```{r}
+coef<-coef(modelo)
+names(coef)<-paste0('beta_',c(0,1))
+coef
+```
+De esta forma, la recta tiene la siguiente exppresión: $y=0.4283435\cdot x-2.6230522 $. Al ser la pendiente positiva, sabemos que a mayor porcentaje de población con bajo nivel socioeconómico (lstat), mayor es la tasa de crimen.
+
+Por otro lado, para representar los resultados aplicamos summary:
+
+```{r}
+summary(modelo)
+```
+
+El modelo explica aproximadamente el 41% de la variabilidad de crim (R² = 0.4085; R² ajustado = 0.4055), indicando que lstat es un predictor relevante de la tasa de crimen. La desviación típica de los residuos es 3.4, lo que significa que las predicciones se desvían en promedio ±3.4 unidades. La relación entre lstat y crim es lineal y positiva, y la pendiente es altamente significativa (p < 2e-16), confirmando que el efecto de lstat es estadísticamente confiable. Además, el contraste F global (p < 2.2e-16) respalda que el modelo en su conjunto es significativo. Los residuos están centrados alrededor de 0, aunque existen algunos valores extremos que podrían considerarse outliers. Realmente, aunque la pendiente es significativa y la relación es positiva, el modelo solo explica ~41% de la variabilidad, por lo que otros factores además de lstat influyen en la tasa de crimen.
+
+**3. Dibuja el diagrama de dispersión, la recta de regresión y las bandas de confianza al 90 %.**
+
+```{r}
+# Para poder usar predict, necesitamos crear un rango de valores de lstat para predecir.
+nuevos <- data.frame(lstat = seq(min(datos$lstat), max(datos$lstat), length.out = 100))
+pred <- predict(modelo, newdata = nuevos, interval = "confidence", level = 0.90)
+bandas_est <- predict(modelo, newdata = nuevos, interval = "confidence", level = 0.90)
+
+plot(datos$lstat, datos$crim,
+     col = "blue",
+     xlab = "Porcentaje de población con bajo nivel socioeconómico (lstat)",
+     ylab = "Tasa de crimen (crim)",
+     main = "Relación entre lstat y crim")               
+
+abline(modelo, col = "red", lwd = 2)
+lines(nuevos$lstat, bandas_est[,2], col = 'black', lty = 1, lwd = 1)
+lines(nuevos$lstat, bandas_est[,3], col = 'black', lty = 1, lwd = 1)
+
+# Leyenda opcional
+legend("topleft", legend = c("Observaciones", "Recta de regresión", "Bandas de confianza 90%"),
+       col = c("blue", "red", "black"), pch = c(19, NA, NA), lty = c(NA,1,1), lwd = 1)
+
+```
+
+**4. Realiza un diagnóstico de los residuos. Si falla algunas de las condiciones, busca una (o varias) posible solución.**
+
+```{r}
+# diagnóstico linealidad y homocedasticidad de los residuos
+residuos <- residuals(modelo)
+predichos <- fitted.values(modelo)
+par(mfcol=c(1,2))
+plot(predichos,residuos, col='BLUE',main = 'Gráfica de residuos')
+abline(h=0,lty=2)
+
+# diagnóstico normalidad residuos
+qqnorm(residuos, col='BLUE')
+qqline(residuos)
+shapiro.test(residuos)
+```
+
+A continuación, interpretemos las gráficas. Por un lado, la gráfica de residuos frente a los valores ajustados muestra un patrón descendente, donde los residuos tienden a ser negativos a medida que aumentan los valores ajustados. Lo que indica que la relación no es completamente lineal y que la variabilidad de los residuos no es constante, por lo que la condición de homocedasticidad tampoco se cumple totalmente. Por otro lado, del Q-Q plot podemos ver que los residuos se alejan de la línea recta en los extremos, sugiriendo colas más largas de lo esperado. Sin embargo, si nos fijamos en el test de Shapiro-Wilk, no nos sorprende el resultado de W = 0.82896 y p-value = 4.984e-14. Ya que nos indican que los residuos no son normales. De esta forma, podríamos pensar que hay posibles outliers o puntos extremos que están afectando la normalidad y la dispersión.
+
+Podríamos considerar distintas soluciones como Verificar si hay outliers extremos y decidir si deben eliminarse o analizarse aparte o bien considerar un modelo no lineal, lo que tendr´´ia mucho sentido por lo que vimos en las gráficas. Otra opción podría ser incluir otras variables predictoras.
+
+# Ejercicio 2
+
+# Ejercicio 3
