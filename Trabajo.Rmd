@@ -116,5 +116,70 @@ A continuación, interpretemos las gráficas. Por un lado, la gráfica de residu
 Podríamos considerar distintas soluciones como Verificar si hay outliers extremos y decidir si deben eliminarse o analizarse aparte o bien considerar un modelo no lineal, lo que tendr´´ia mucho sentido por lo que vimos en las gráficas. Otra opción podría ser incluir otras variables predictoras.
 
 # Ejercicio 2
+**Considera la variable respuesta crim relacionándola con el predictor medv.**
+**1. Evalúa el efecto de medv sobre crim.**
+
+```{r}
+
+```
+
+**2. Obtén la recta de mínimos cuadrados. Interpreta los resultados obtenidos (coeficientes, significatividad,R2, contraste del modelo, etc...).**
+
+```{r}
+
+```
+
+**3. Dibuja el diagrama de dispersión, la recta de regresión y las bandas de predicción al 90 %.**
+
+```{r}
+
+```
+
+**4. Realiza un análisis de los residuos.**
+
+```{r}
+
+```
+
+**5. ¿Te parece adecuado haber realizado regresión lineal o es preferible otro tipo de regresión?. Ajusta el modelo que te parezca más adecuado.**
+
+```{r}
+
+```
 
 # Ejercicio 3
+
+**1. Encuentra el número óptimo de variables a incluir en un modelo predictivo de crim, según los criterios R2, BIC y CP, utilizando la metodología RegSubsets. Indica brevemente en que consiste esta metodología.**
+**¿Qué variables incluye el modelo obtenido? (Seleccionar el criterio que más os guste). Interpreta los coeficientes obtenidos. ¿Tienen todas sentido?. ¿Son significativos?.**
+
+```{r}
+
+```
+
+
+**2. Selecciona el mejor modelo con el método stepwise. Indica brevemente en que consiste esta metodología y contesta a las siguientes preguntas:**
+**¿Qué modelo piensas que es mejor? (Entre este y el/los obtenido/s mediante Regsubsets). ¿Qué% de la varianza de crim explica el modelo?¿Cuál es el efecto de la variable chas sobre crim?**
+
+```{r}
+
+```
+
+
+**3. Con el modelo obtenido con stepwise, realiza el diagnóstico de tu modelo, sin emprender ninguna acción, e indica los problemas que presenta.**
+
+```{r}
+
+```
+
+**4. Emprende ahora las acciones que te parezcan oportunas e indica los problemas que has conseguido solucionar o mejorar un poco.**
+
+```{r}
+
+```
+
+**5. Obtén la predicción de la tasa de criminalidad para un barrio en la mediana de los predictores en el modelo escogido. Notar que las variables categóricas se tratan de diferente manera, no hay mediana.**
+
+```{r}
+
+```
+
