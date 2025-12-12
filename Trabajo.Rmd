@@ -11,8 +11,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Librerías
 ```{r}
-library(openxlsx)
-library(corrplot)
+pacman::p_load(
+  openxlsx, ggplot2, dplyr,
+  car, lmtest, MASS, sandwich, corrplot
+)
 ```
 
 # Importación de los datos
@@ -120,32 +122,122 @@ Podríamos considerar distintas soluciones como Verificar si hay outliers extrem
 **1. Evalúa el efecto de medv sobre crim.**
 
 ```{r}
+summary(datos[, c("crim","medv")])
+
+# Obtenemos el gráfico de dispersión + tendencia
+ggplot(datos, aes(x = medv, y = crim)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "crim vs medv", x = "medv (valor mediano vivienda)", y = "crim (tasa criminalidad)")
+
+# Obtenemos la correlación de Pearson
+pearson_corr<-cor(datos$medv, datos$crim, method = "pearson")
+
+# Obtenemos la correlación de Spearman
+spearman_corr<-cor(datos$medv, datos$crim, method = "spearman")
+
+cat("Correlación de Pearson: ",pearson_corr)
+cat("Correlación de Spearman: ",spearman_corr)
 
 ```
+
+El resumen descriptivo indica que `crim` presenta una distribución claramente asimétrica a la derecha: la mayoría de observaciones toman valores bajos (mediana ≈ 0.241), pero existen valores extremos elevados (máximo ≈ 24.39). Mientras que `medv` se concentra alrededor de 20–31 (mediana ≈ 23.90) y alcanza un máximo de 50, lo que sugiere un rango acotado en el extremo superior.
+
+El diagrama de dispersión muestra una tendencia decreciente es decir, que a medida que aumenta `medv`, tiende a disminuir `crim`. También se observa que para valores bajos de `medv` hay mucha más variabilidad en `crim`, mientras que para valores altos de `medv` la criminalidad se mantiene cercana a cero y con poca dispersión. Esto sugiere la presencia de posibles valores atípicos y un patrón compatible con heterocedasticidad (varianza no constante).
+
+Numéricamente, la correlación de Pearson es r = −0.523, lo que indica una asociación lineal negativa moderada entre ambas variables: barrios con mayor `medv` tienden a presentar menor `crim`. La correlación de Spearman es ρ = −0.515, muy cercana a Pearson, lo que refuerza que la relación es también monótona decreciente y que el resultado no depende exclusivamente de la linealidad estricta.
 
 **2. Obtén la recta de mínimos cuadrados. Interpreta los resultados obtenidos (coeficientes, significatividad,R2, contraste del modelo, etc...).**
 
 ```{r}
-
+#Ajustamos el modelo lineal
+m1 <- lm(crim ~ medv, data = datos)
+summary(m1)
 ```
+- Coeficientes e interpretación
+  - El intercepto, con valor de 8.5183 (valor medio estimado de `crim` cuando `medv = 0`), aun siendo estadísticamente significativo, su interpretación práctica es limitada porque medv = 0 no es un valor realista en el contexto del conjunto de datos.
+  - La pendiente de `medv` (−0.2550) indica que, manteniendo lo demás constante (aquí no hay más variables), un aumento de 1 unidad en `medv` se asocia con una disminución media de 0.255 unidades en `crim`.
+  
+- Significatividad
+  - El coeficiente de `medv` es altamente significativo (t = −8.615, p = 2.26e−15). Por tanto, existe evidencia estadística muy fuerte para rechazar la hipótesis nula y afirmar que `medv` tiene un efecto lineal distinto de cero sobre crim.
+  
+- Bondad de ajuste (R^2)
+  - La bondad de ajuste cuenta con un valor de 0.2736, lo que significa que aproximadamente un 27.4% de la variabilidad observada en `crim`.
 
+- Contraste global del modelo (F)
+  - El contraste global del modelo es significativo, siendo de: F = 74.21 con (1, 197) grados de libertad y p = 2.258e−15. Esto confirma que el modelo con `medv` como predictor mejora de forma significativa frente al modelo nulo (solo intercepto). En regresión simple, este contraste es coherente con el contraste de la pendiente.
+
+- Error estándar residual
+  - El error estándar residual es 3.769, que comparado con la escala de `crim` (con máximos altos y mucha asimetría), sugiere que hay dispersión considerable alrededor de la recta, consistente con el R^2 moderado y con la presencia probable de valores extremos.
+  
 **3. Dibuja el diagrama de dispersión, la recta de regresión y las bandas de predicción al 90 %.**
 
 ```{r}
+# Rejilla de valores de medv en el rango observado
+grid <- data.frame(medv = seq(min(datos$medv), max(datos$medv), length.out = 200))
 
+pred90 <- predict(m1, newdata = grid, interval = "prediction", level = 0.90)
+pred90 <- cbind(grid, pred90)
+
+# Gráfico
+ggplot(datos, aes(medv, crim)) +
+  geom_point() +
+  geom_line(data = pred90, aes(y = fit)) +
+  geom_line(data = pred90, aes(y = lwr), linetype = 2) +
+  geom_line(data = pred90, aes(y = upr), linetype = 2) +
+  labs(title = "Recta de regresión y bandas de predicción (90%)",
+       x = "medv", y = "crim")
 ```
 
 **4. Realiza un análisis de los residuos.**
 
 ```{r}
+#Realizamos las comprobaciones típicas con gráficos y tests
+
+#Gráficos estándar del modelo
+par(mfrow = c(2,2))
+plot(m1)
+par(mfrow = c(1,1))
+
+# Normalidad (Shapiro-Wilk)
+shapiro.test(residuals(m1))
 
 ```
+A partir de los gráficos de diagnóstico del modelo m1 se observa que los residuos no se comportan como una nube aleatoria alrededor de 0 en el gráfico *Residuals vs Fitted*, sino que muestran un patrón y, además, una dispersión creciente para valores ajustados altos. Esto sugiere que el supuesto de homocedasticidad (varianza constante) no se cumple adecuadamente.
+
+En el gráfico *Q–Q Residuals* los puntos se separan claramente de la recta teórica, especialmente en las colas, lo que indica que los residuos no siguen una distribución normal. Esta falta de normalidad queda confirmada por el test de *Shapiro–Wilk*, con W = 0.74068 y p-valor < 2.2·10^(-16), por lo que se rechaza la hipótesis de normalidad de los residuos.
+
+Finalmente, en *Residuals vs Leverage* aparecen algunas observaciones destacadas, es decir, con residuo grande y/o mayor leverage, lo que sugiere la presencia de posibles puntos atípicos o influyentes que podrían estar afectando al ajuste.
+
+En conjunto, el diagnóstico indica que el modelo lineal simple es útil para describir la tendencia global entre `medv` y `crim`, pero no cumple bien los supuestos de normalidad y varianza constante, por lo que conviene considerar una alternativa en el siguiente apartado (por ejemplo, una transformación de `crim`).
 
 **5. ¿Te parece adecuado haber realizado regresión lineal o es preferible otro tipo de regresión?. Ajusta el modelo que te parezca más adecuado.**
 
-```{r}
+En el modelo m1, el análisis de residuos mostraba heterocedasticidad (varianza creciente) y no normalidad marcada, además de posibles observaciones problemáticas. Por tanto, aunque el modelo lineal capta una tendencia media decreciente, no resulta el más adecuado si queremos que los supuestos del modelo lineal (normalidad y varianza constante de los errores) se cumplan razonablemente.
 
+Dado que `crim` es una variable positiva y muy asimétrica, una alternativa estándar es transformar la respuesta con logaritmos y ajustar:
+\[
+m_2:\ \log(\texttt{crim}) = \beta_0 + \beta_1\,\texttt{medv} + \varepsilon
+\]
+
+```{r}
+m2 <- lm(log(crim) ~ medv, data = datos)
+summary(m2)
+
+# Diagnóstico de residuos del nuevo modelo
+par(mfrow = c(2,2))
+plot(m2)
+par(mfrow = c(1,1))
+
+AIC(m1, m2)
 ```
+- El R^2 de m2 es 0.2859, ligeramente mayor que en m1 (0.2736), lo que indica una mejora moderada en variabilidad explicada, además de una mejora más importante en el comportamiento de residuos.
+
+- En los gráficos de diagnóstico de m2 se observa una mejor estabilización de la varianza (Scale–Location más plano) y una mejor aproximación a la normalidad en el Q–Q (aunque aún puede haber desviaciones en colas, habituales en datos con extremos).
+
+- El AIC disminuye notablemente (de 1096.79 a 747.26), lo que apoya que el modelo transformado se ajusta mejor.
+
+Como conclusión llegamos a que es preferible el modelo con transformación logarítmica m2, ya que mantiene un efecto significativo de medv sobre crim y mejora sustancialmente los problemas de heterocedasticidad y normalidad observados en m1.
 
 # Ejercicio 3
 
