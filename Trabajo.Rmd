@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(openxlsx)
 library(corrplot)
+library(leaps)
 ```
 
 # Importación de los datos
@@ -152,18 +153,44 @@ Podríamos considerar distintas soluciones como Verificar si hay outliers extrem
 **1. Encuentra el número óptimo de variables a incluir en un modelo predictivo de crim, según los criterios R2, BIC y CP, utilizando la metodología RegSubsets. Indica brevemente en que consiste esta metodología.**
 **¿Qué variables incluye el modelo obtenido? (Seleccionar el criterio que más os guste). Interpreta los coeficientes obtenidos. ¿Tienen todas sentido?. ¿Son significativos?.**
 
+La función RegSubsets del paquete leaps  compara de forma exhaustiva todos los subconjuntos posibles de predictores y selecciona, para cada tamaño, el mejor modelo. Después podemos elegir el modelo óptimo según un criterio (BIC, Cp, R² ajustado). Veámoslo:
+
 ```{r}
+modelos <- regsubsets(crim ~ ., data = datos, nbest = 1)
+res<- summary(modelos)
+cat('Si utilizamos como criterio el R2, el número de componentes debe ser de ',which.max(res$adjr2))
+cat('Si utilizamos como criterio el BIC, el número de componentes debe ser de ',which.min(res$bic))
+cat('Si utilizamos como criterio el CP, el número de componentes debe ser de ',which.min(res$cp))
 
+res
 ```
+Viendo el summary, podemos decir que si nos basamos en el R2 o CP el modelo debería de incluir todas las variables. Sin embargo, si nos basamos en el BIC, el modelo estaría formado por las variables lstat,prtratio,nox,rm,chas que son las 5 más influyentes. 
 
+En nuestro caso vamos a elegir el modelo elegido por el BIC.
+
+```{r}
+modeloBIC<-lm(crim~lstat+ptratio+nox+rm+chas,data=datos)
+summary(modeloBIC)
+```
+Al analizar los coeficientes del modelo seleccionado por BIC, observamos que todas las variables incluidas son estadísticamente significativas (p < 0.001). Además, los predictores lstat, ptratio y nox presentan efectos positivos sobre la tasa de criminalidad, lo cual es coherente con la interpretación socioeconómica del conjunto de datos. La variable rm muestra un coeficiente positivo aunque en teoría debería relacionarse negativamente con el crimen, esto podría deberse a la colinealidad entre predictores. Por último, chas tiene signo negativo, lo que significa que hay menos criminalidad en zonas cercanas al río. Así, el modelo alcanza un R2 ajustado del 0.557, lo que indica un nivel de explicación moderado de la variabilidad de crimen.
 
 **2. Selecciona el mejor modelo con el método stepwise. Indica brevemente en que consiste esta metodología y contesta a las siguientes preguntas:**
 **¿Qué modelo piensas que es mejor? (Entre este y el/los obtenido/s mediante Regsubsets). ¿Qué% de la varianza de crim explica el modelo?¿Cuál es el efecto de la variable chas sobre crim?**
 
-```{r}
+El método stepwise es una técnica de selección de variables que va construyendo el modelo añadiendo o eliminando variables paso a paso. En cada iteración evalúa si el añadir o eliminar variables mejora el modelo según un criterio (normalmente AIC). Veámoslo:
 
+```{r}
+modelocompleto <- lm(crim ~ ., data = datos)
+stepwise <- step(modelocompleto, direction = "both")
+
+summary(stepwise)
 ```
 
+Si interpretamos los resultados utilizando el método stepwise en dirección ‘both’, podemos ver que usando el AIC va eliminando paso a paso las variables que menos aportan al modelo. En nuestro caso, primero se elimina la variable black y luego nox, de forma que el modelo final incluye las variables indus, chas, rm, age, dis, ptratio, lstat y medv. La mayoría de predictores resultan altamente significativos, excepto age. Este modelo presenta un R2 ajustado de 0.586, indicando un ajuste moderado, y un AIC inferior al modelo completo.
+
+De esta forma, basándonos en el R2 ajustado, el mejor modelo es el de stepwise que explica un poco mejor la proporción de la variabilidad de crim, siendo de aproximadamente el 59%. 
+
+Por otro lado, la variable chas tiene un efecto negativo y significativo sobre la criminalidad. Estar junto al río Charles reduce la tasa de criminalidad en aproximadamente 2.24 unidades, manteniendo constantes el resto de predictores. Esto tiene sentido, porque si buscamos que hay alrededor del río Charles podemos ver que esas áreas suelen ser más residenciales, más caras y de mayor nivel socioeconómico, lo que suele traducirse en menor criminalidad.
 
 **3. Con el modelo obtenido con stepwise, realiza el diagnóstico de tu modelo, sin emprender ninguna acción, e indica los problemas que presenta.**
 
