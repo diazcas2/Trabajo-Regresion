@@ -156,20 +156,20 @@ Numéricamente, la correlación de Pearson es r = −0.523, lo que indica una as
 m1 <- lm(crim ~ medv, data = datos)
 summary(m1)
 ```
-- Coeficientes e interpretación
+- Coeficientes e interpretación:
   - El intercepto, con valor de 8.5183 (valor medio estimado de `crim` cuando `medv = 0`), aun siendo estadísticamente significativo, su interpretación práctica es limitada porque medv = 0 no es un valor realista en el contexto del conjunto de datos.
   - La pendiente de `medv` (−0.2550) indica que, manteniendo lo demás constante (aquí no hay más variables), un aumento de 1 unidad en `medv` se asocia con una disminución media de 0.255 unidades en `crim`.
   
-- Significatividad
+- Significatividad:
   - El coeficiente de `medv` es altamente significativo (t = −8.615, p = 2.26e−15). Por tanto, existe evidencia estadística muy fuerte para rechazar la hipótesis nula y afirmar que `medv` tiene un efecto lineal distinto de cero sobre crim.
   
-- Bondad de ajuste (R^2)
+- Bondad de ajuste (R^2):
   - La bondad de ajuste cuenta con un valor de 0.2736, lo que significa que aproximadamente un 27.4% de la variabilidad observada en `crim`.
 
-- Contraste global del modelo (F)
+- Contraste global del modelo (F):
   - El contraste global del modelo es significativo, siendo de: F = 74.21 con (1, 197) grados de libertad y p = 2.258e−15. Esto confirma que el modelo con `medv` como predictor mejora de forma significativa frente al modelo nulo (solo intercepto). En regresión simple, este contraste es coherente con el contraste de la pendiente.
 
-- Error estándar residual
+- Error estándar residual:
   - El error estándar residual es 3.769, que comparado con la escala de `crim` (con máximos altos y mucha asimetría), sugiere que hay dispersión considerable alrededor de la recta, consistente con el R^2 moderado y con la presencia probable de valores extremos.
   
 **3. Dibuja el diagrama de dispersión, la recta de regresión y las bandas de predicción al 90 %.**
@@ -358,6 +358,7 @@ names(new_med) <- vars
 new_med
 
 ```
+
 ```{r}
 # Predicción puntual en escala log(crim)
 pred_log <- predict(step_log, newdata = new_med)
