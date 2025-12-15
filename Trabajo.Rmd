@@ -288,18 +288,85 @@ Por otro lado, la variable chas tiene un efecto negativo y significativo sobre l
 **3. Con el modelo obtenido con stepwise, realiza el diagnóstico de tu modelo, sin emprender ninguna acción, e indica los problemas que presenta.**
 
 ```{r}
+par(mfrow = c(2,2))
+plot(stepwise)
+par(mfrow = c(1,1))
 
+shapiro.test(residuals(stepwise))
 ```
+Con lo obtenido en el diagnóstico, se pueden observar tres problemas principales: La heterocedasticidad, la no normalidad entre residuos y observaciones influyentes o alto leverage. Además se puede observar indicios de falta de linealidad en una parte del rango.
+
+- Residuals vs Fitted:
+  - La línea roja (suavizado) cae y sube. Con esto se puede considerarque la relación entre la respuesta y el conjunto de predictores no queda capturada de forma perfectamente lineal.
+  - También se puede apreciar que para valores ajustados grandes la dispersión de residuos aumenta y aparecen varios residuos positivos grandes (puntos etiquetados), esto se relaciona con heterocedasticidad y outliers.
+  
+- Scale–Location
+  - La línea roja no es horizontal y la dispersión no es uniforme. Esto indica que la varianza de los residuos no es constante a lo largo de los valores ajustados.
+  
+- Q–Q Residuals y Shapiro–Wilk
+  - En el Q–Q plot los puntos se separan de la recta en la cola superior y algo en la inferior, lo que indica colas más pesadas que la normal y/o asimetría.
+  
+- Residuals vs Leverage
+  - Aparecen observaciones con leverage alto. El hecho de tener leverage tan elevado implica que esas observaciones pueden condicionar el ajuste y los coeficientes.
+
+El diagnóstico del modelo muestra que el ajuste lineal presenta heterocedasticidad (varianza no constante), no normalidad de los residuos (Shapiro–Wilk: p = 1.452e−12), y presencia de observaciones con leverage alto que podrían ser influyentes. Además, el patrón en Residuals vs Fitted sugiere que la relación no queda totalmente explicada mediante un esquema lineal.
+
 
 **4. Emprende ahora las acciones que te parezcan oportunas e indica los problemas que has conseguido solucionar o mejorar un poco.**
 
 ```{r}
+# Modelo completo en escala log
+full_log <- lm(log(crim) ~ ., data = datos)
 
+# Stepwise (AIC) en escala log
+step_log <- step(full_log, direction = "both", trace = 0)
+
+summary(step_log)
 ```
+Se ha transformado la respuesta a log(`crim`), lo que hace que la varianza se estabilice y acerca los residuos a la normalidad.
+
+```{r}
+par(mfrow = c(2,2))
+plot(step_log)
+par(mfrow = c(1,1))
+
+shapiro.test(residuals(step_log))
+```
+El nuevo modelo (step_log) mejora de forma clara el comportamiento de los residuos. En particular, la normalidad queda prácticamente solucionada: el test de Shapiro–Wilk da W=0.99206 y p=0.3517, por lo que no hay evidencia para rechazar normalidad, y el Q–Q plot se alinea mucho mejor con la recta teórica. Además, el gráfico Scale–Location muestra una dispersión más uniforme, lo que indica una reducción importante de la heterocedasticidad respecto al modelo anterior. En Residuals vs Fitted se aprecia también un patrón menos acusado, sugiriendo una mejora parcial de la linealidad. Por último, aunque en Residuals vs Leverage aún aparecen algunas observaciones con leverage relativamente alto, su impacto parece menor y el ajuste global es más estable.
 
 **5. Obtén la predicción de la tasa de criminalidad para un barrio en la mediana de los predictores en el modelo escogido. Notar que las variables categóricas se tratan de diferente manera, no hay mediana.**
 
 ```{r}
+# Variables que usa el modelo (sin la respuesta)
+vars <- all.vars(formula(step_log))[-1]
+
+# Construimos un "barrio típico": mediana en numéricas y moda en factores
+new_med <- lapply(vars, function(v){
+  x <- datos[[v]]
+  if (is.numeric(x)) {
+    median(x, na.rm = TRUE)
+  } else if (is.factor(x)) {
+    names(sort(table(x), decreasing = TRUE))[1]  # moda
+  } else {
+    names(sort(table(x), decreasing = TRUE))[1]
+  }
+})
+
+new_med <- as.data.frame(new_med)
+names(new_med) <- vars
+
+new_med
 
 ```
+```{r}
+# Predicción puntual en escala log(crim)
+pred_log <- predict(step_log, newdata = new_med)
 
+# Predicción puntual en escala original crim
+pred_crim <- exp(pred_log)
+
+pred_crim
+```
+Para obtener la predicción de la tasa de criminalidad de un “barrio típico”, se construye un vector de predictores fijando la mediana en todas las variables numéricas incluidas en el modelo final `step_log`. En el caso de variables categóricas, como chas, no existe mediana; por ello se fija una categoría concreta, tomando como criterio la más frecuente en la muestra (moda). Con ese newdata se calcula la predicción mediante predict().
+
+Debido a que el modelo está ajustado en la escala log(crim) la predicción se obtiene inicialmente en esa escala y posteriormente se transforma a la escala original aplicando la exponencial log(crim)=exp(log(crim)).
